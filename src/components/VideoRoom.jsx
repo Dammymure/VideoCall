@@ -22,12 +22,12 @@ export default function VideoRoom() {
         }
 
         if (mediaType === 'audio') {
-            // user.audioTrack.play()
+            user.audioTrack.play()
         }
     }
     const handleUserLeft = (user) =>{
         setUsers((previousUsers) => 
-        previousUsers.filter((u) => u.id !== user.uid)
+        previousUsers.filter((u) => u.uid !== user.uid)
         );
     };
  
@@ -56,17 +56,17 @@ export default function VideoRoom() {
                     client.publish(tracks);
                 });
 
-                return () =>{
-                    for (let localTrack of localTracks) {
-                        localTrack.stop();
-                        localTrack.close();
-                    }
+        return () => {
+            for (let localTrack of localTracks) {
+                localTrack.stop();
+                localTrack.close();
+            }
 
-                    client.off('user-published', handleUserJoined)
-                    client.off('user-left', handleUserLeft)
-                    client.unpublish(tracks).then(() => client.leave())
-                }
-            },[])
+            client.off('user-published', handleUserJoined)
+            client.off('user-left', handleUserLeft)
+            client.unpublish(localTracks).then(() => client.leave())
+        }
+    }, [])
 
     return (
     <div style={{ display:'flex', justifyContent:'center'}}>

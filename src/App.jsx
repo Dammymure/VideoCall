@@ -30,16 +30,19 @@ function App() {
         <div className="heart heart-20">💝</div>
       </div>
 
-      <h1 className='text-2xl relative z-10'>VideoCall App</h1>
-
       {!joined && (
-        <button className='bg-black text-white text-2xl p-3 rounded-full relative z-10 hover:bg-gray-800 transition-colors' onClick={() => setJoined(true)}>
-          Start Call
+        <>
+          <h1 className='text-2xl relative z-10'>VideoCall App</h1>
+          <button className='bg-black text-white text-2xl p-3 rounded-full relative z-10 hover:bg-gray-800 transition-colors' onClick={() => setJoined(true)}>
+            Start Call
           </button>
+        </>
       )}
 
       {joined && (
-        <VideoRoom/>
+        <div className="absolute inset-0 z-10">
+          <VideoRoom onEnd={() => setJoined(false)} />
+        </div>
       )}
     </div>
   );

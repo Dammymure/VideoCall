@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import AgoraRTC from 'agora-rtc-sdk-ng';
 import VideoPlayer from './VideoPlayer';
-const APP_ID= '22dbdc7823c3432b8b5d8ff8acb6146d'
-const TOKEN= '007eJxTYNgVYLbvuVbB7pNf9A8yO21pFvg0/ZvwwjPzmpdt8806qntEgcHIKCUpJdncwsg42djE2CjJIsk0xSItzSIxOcnM0MQsJVdyR0ZDICOD+YY+VkYGCATxORnKMlNS850Tc3IYGACPhyMh'
-const CHANNEL = 'videoCall'
+
+const APP_ID = process.env.REACT_APP_AGORA_APP_ID;
+const TOKEN = process.env.REACT_APP_AGORA_TOKEN;
+const CHANNEL = process.env.REACT_APP_AGORA_CHANNEL;
 
 const client = AgoraRTC.createClient({
     mode: 'rtc',
@@ -13,6 +14,7 @@ const client = AgoraRTC.createClient({
 export default function VideoRoom() {
     const [users, setUsers] = useState ([])
     const [localTracks, setLocalTracks] = useState([])
+    const [localUser, setLocalUser] = useState(null)
 
     const handleUserJoined = async (user, mediaType) =>{
         await client.subscribe(user, mediaType)
@@ -48,11 +50,16 @@ export default function VideoRoom() {
             .then(([tracks, uid]) => {
                     const [audioTrack, videoTrack] = tracks;
                     setLocalTracks(tracks)
-                    setUsers(previousUsers => [...previousUsers, {
+                    
+                    // Create local user object
+                    const localUserObj = {
                         uid,
                         audioTrack,
                         videoTrack,
-                    }]);
+                        isLocal: true
+                    };
+                    
+                    setLocalUser(localUserObj);
                     client.publish(tracks);
                 });
 
@@ -69,18 +76,31 @@ export default function VideoRoom() {
     }, [])
 
     return (
-    <div style={{ display:'flex', justifyContent:'center'}}>
-        <div
-        style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(2, 200px)'
-        }}
-        >
-        {users.map((user) => (
-            <VideoPlayer key={user.uid} user={user}/>
-        ))}
-        </div>        
-
+    <div className="relative w-full h-screen bg-gray-900">
+        {/* Main video - Remote user */}
+        {users.length > 0 && (
+            <div className="w-full h-full">
+                <VideoPlayer user={users[0]} isMainVideo={true} />
+            </div>
+        )}
+        
+        {/* Local user video - Small corner */}
+        {localUser && (
+            <div className="absolute bottom-4 right-4 w-48 h-36 rounded-lg overflow-hidden shadow-lg border-2 border-white">
+                <VideoPlayer user={localUser} isMainVideo={false} />
+            </div>
+        )}
+        
+        {/* Waiting for other user */}
+        {users.length === 0 && (
+            <div className="flex items-center justify-center h-full">
+                <div className="text-center text-white">
+                    <div className="text-2xl mb-4">📞</div>
+                    <h2 className="text-xl mb-2">Waiting for someone to join...</h2>
+                    <p className="text-gray-300">Share this room with a friend!</p>
+                </div>
+            </div>
+        )}
     </div> ) 
 }
 

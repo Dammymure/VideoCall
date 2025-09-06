@@ -17,13 +17,12 @@ export default function VideoRoom({ onEnd }) {
     const [localUser, setLocalUser] = useState(null);
 
     const handleUserJoined = async (user, mediaType) => {
-        console.log('User published:', user.uid, mediaType);
         await client.subscribe(user, mediaType);
 
         setUsers((previousUsers) => {
-            // Prevent duplicates
+            // Prevent duplicates and only add if videoTrack exists
             const exists = previousUsers.some((u) => u.uid === user.uid);
-            if (!exists) {
+            if (!exists && user.videoTrack) {
                 return [...previousUsers, user];
             }
             return previousUsers;
@@ -39,24 +38,6 @@ export default function VideoRoom({ onEnd }) {
         setUsers((previousUsers) =>
             previousUsers.filter((u) => u.uid !== user.uid)
         );
-    };
-
-    const leaveCall = async () => {
-        try {
-            for (let track of localTracks) {
-                track.stop();
-                track.close();
-            }
-            await client.unpublish(localTracks);
-            await client.leave();
-        } catch (e) {
-            console.error('Error leaving call:', e);
-        } finally {
-            setUsers([]);
-            setLocalTracks([]);
-            setLocalUser(null);
-            onEnd && onEnd();
-        }
     };
 
     useEffect(() => {
@@ -95,6 +76,35 @@ export default function VideoRoom({ onEnd }) {
             client.off('user-left', handleUserLeft);
         };
     }, []);
+
+    useEffect(() => {
+        const handleRemoteLeave = () => {
+            leaveCall();
+        };
+        window.addEventListener('endCall', handleRemoteLeave);
+
+        return () => {
+            window.removeEventListener('endCall', handleRemoteLeave);
+        };
+    }, []);
+
+    const leaveCall = async () => {
+        try {
+            for (let track of localTracks) {
+                track.stop();
+                track.close();
+            }
+            await client.unpublish(localTracks);
+            await client.leave();
+        } catch (e) {
+            console.error('Error leaving call:', e);
+        } finally {
+            setUsers([]);
+            setLocalTracks([]);
+            setLocalUser(null);
+            onEnd && onEnd();
+        }
+    };
 
     return (
         <div className="relative w-full h-full bg-black overflow-hidden">

@@ -72,12 +72,8 @@ class MatchmakingService {
     // Deterministic pick: smallest id among candidates
     const match = potentialMatches.slice().sort((a, b) => a.id - b.id)[0];
 
-    // Compute a shared deterministic room using two ids
-    const a = currentUserId != null ? currentUserId : allOnline[0].id;
-    const b = match.id;
-    const minId = Math.min(a, b);
-    const maxId = Math.max(a, b);
-    const room = `call_room_${minId}_${maxId}`;
+    // Global shared room so any two live users connect without backend
+    const room = 'call_room_global';
 
     return {
       success: true,

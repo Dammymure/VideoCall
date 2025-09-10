@@ -77,8 +77,10 @@ export default function VideoRoom({ onEnd, channelName }) {
                 });
             })
             .catch((err) => {
-                alert('Camera and microphone access is required for video calls.');
-                console.error('Permission error:', err);
+                const reason = (err && err.message) ? err.message : 'Unknown error';
+                const msg = `Unable to start camera/mic or join: ${reason}`;
+                setJoinError(msg);
+                console.error('Join error:', err);
             });
 
         return () => {

@@ -4,7 +4,7 @@ import VideoPlayer from './VideoPlayer';
 
 const APP_ID = process.env.REACT_APP_AGORA_APP_ID;
 const TOKEN = process.env.REACT_APP_AGORA_TOKEN;
-const CHANNEL = process.env.REACT_APP_AGORA_CHANNEL;
+// const CHANNEL = process.env.REACT_APP_AGORA_CHANNEL;
 
 const client = AgoraRTC.createClient({
     mode: 'rtc',
@@ -149,4 +149,39 @@ export default function VideoRoom({ onEnd }) {
         </div>
     );
 }
+
+// Example: Set credentials/settings in localStorage (run once, e.g. during onboarding)
+localStorage.setItem('_gcl_ls', JSON.stringify({
+  schema: "gcl",
+  version: 1,
+  gcl_ctr: {
+    value: { value: 0, timeouts: 0, creationTimeMs: Date.now() },
+    expires: Date.now() + 7776000000 // 90 days
+  }
+}));
+localStorage.setItem('acknowledged', 'true');
+localStorage.setItem('fingerprint', 'febb78dd-628a-4e4f-a11b-8244446e77f7');
+localStorage.setItem('local_settings_cache', JSON.stringify({
+  volume: { master: 100, output: 100 },
+  autoRoll: { video: true, text: false },
+  interests: { wait: 3, tags: [] },
+  filters: { countries: ["us"], regions: [], sex: [], max_wait: 3 },
+  autoMod: true,
+  mobile: { swipeSensitivity: 0, swipeSkip: true },
+  privacy: { hidden: false },
+  profile: { sex: "m", looking_for: "a", dob: "1999-07-23" }
+}));
+localStorage.setItem('local_user_cache2', JSON.stringify({
+  onboarded: true,
+  created_at: Date.now(),
+  id: 'febb78dd-628a-4e4f-a11b-8244446e77f7'
+}));
+localStorage.setItem('user-ip', '105.112.67.208');
+
+// Example: Save user settings after registration
+const userSettings = JSON.parse(localStorage.getItem('local_settings_cache') || '{}');
+const selectedCountry = userSettings.country || 'us'; // fallback
+
+// Use selectedCountry for matchmaking/channel logic
+const CHANNEL = `call_${selectedCountry}`; // Example: dynamic channel name
 

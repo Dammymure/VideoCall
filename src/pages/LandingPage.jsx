@@ -1,8 +1,21 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+
+// Example country list
+const COUNTRY_LIST = [
+  { name: 'United States', abbr: 'US' },
+  { name: 'United Kingdom', abbr: 'UK' },
+  { name: 'Nigeria', abbr: 'NG' },
+  { name: 'Australia', abbr: 'AU' },
+  { name: 'Canada', abbr: 'CA' },
+  { name: 'Germany', abbr: 'DE' },
+  // ...add more countries as needed
+];
 
 export default function LandingPage() {
   const navigate = useNavigate();
+  const [showCountryPopup, setShowCountryPopup] = useState(false);
+  const [selectedCountries, setSelectedCountries] = useState([]);
 
   const handleVideoCall = () => {
     // Check if user is registered first
@@ -12,6 +25,8 @@ export default function LandingPage() {
       return;
     }
     
+    // Save selected countries to localStorage for later use
+    localStorage.setItem('selectedCountries', JSON.stringify(selectedCountries));
     // Go directly to video call after registration
     navigate('/call');
   };
@@ -20,6 +35,24 @@ export default function LandingPage() {
     // For now, redirect to video call (you can create text chat later)
     handleVideoCall();
   };
+
+  // Popup handlers
+  const handleCountryButtonClick = () => setShowCountryPopup(true);
+
+  const handleCountryChange = (abbr) => {
+    setSelectedCountries((prev) =>
+      prev.includes(abbr)
+        ? prev.filter((c) => c !== abbr)
+        : [...prev, abbr]
+    );
+  };
+
+  const handleCountryConfirm = () => setShowCountryPopup(false);
+
+  const countryLabel =
+    selectedCountries.length === 0
+      ? 'ALL'
+      : selectedCountries.join(', ');
 
   return (
     <div className="min-h-screen bg-white">
@@ -75,9 +108,12 @@ export default function LandingPage() {
               placeholder="Type your interests..."
               className="w-full max-w-md px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
             />
-            <button className="ml-2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-3 rounded-lg flex items-center space-x-1 transition-colors">
+            <button
+              className="ml-2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-3 rounded-lg flex items-center space-x-1 transition-colors"
+              onClick={handleCountryButtonClick}
+            >
               <span>🌍</span>
-              <span>Countries: ALL</span>
+              <span>Countries: {countryLabel}</span>
             </button>
           </div>
 
@@ -101,6 +137,42 @@ export default function LandingPage() {
           </div>
         </div>
       </div>
+
+      {/* Country Selection Popup */}
+      {showCountryPopup && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
+            <h2 className="text-lg font-semibold mb-4">Select Countries</h2>
+            <div className="max-h-64 overflow-y-auto mb-4">
+              {COUNTRY_LIST.map((country) => (
+                <label key={country.abbr} className="flex items-center mb-2">
+                  <input
+                    type="checkbox"
+                    checked={selectedCountries.includes(country.abbr)}
+                    onChange={() => handleCountryChange(country.abbr)}
+                    className="mr-2"
+                  />
+                  {country.name} ({country.abbr})
+                </label>
+              ))}
+            </div>
+            <div className="flex justify-end space-x-2">
+              <button
+                onClick={() => setShowCountryPopup(false)}
+                className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCountryConfirm}
+                className="px-4 py-2 bg-yellow-400 rounded hover:bg-yellow-500 font-semibold"
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Footer */}
       <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2">

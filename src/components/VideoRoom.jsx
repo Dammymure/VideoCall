@@ -2,17 +2,6 @@ import React, { useState, useEffect } from 'react';
 import AgoraRTC from 'agora-rtc-sdk-ng';
 import VideoPlayer from './VideoPlayer';
 
-// Get user settings and selected country from localStorage
-const userSettings = JSON.parse(localStorage.getItem('local_settings_cache') || '{}');
-const selectedCountries = userSettings.filters?.countries || ['us'];
-// Use first selected country for channel, fallback to 'us'
-let CHANNEL = `call_${selectedCountries[0]}`;
-
-// If no country selected or no match, fallback to a general channel
-if (!selectedCountries.length || selectedCountries[0] === 'ALL') {
-    CHANNEL = 'call_general';
-}
-
 const APP_ID = process.env.REACT_APP_AGORA_APP_ID;
 const TOKEN = process.env.REACT_APP_AGORA_TOKEN;
 
@@ -21,10 +10,11 @@ const client = AgoraRTC.createClient({
     codec: 'vp8',
 });
 
-export default function VideoRoom({ onEnd }) {
+export default function VideoRoom({ onEnd, channelName }) {
     const [users, setUsers] = useState([]);
     const [localTracks, setLocalTracks] = useState([]);
     const [localUser, setLocalUser] = useState(null);
+    const [joinError, setJoinError] = useState(null);
 
     const handleUserJoined = async (user, mediaType) => {
         await client.subscribe(user, mediaType);
@@ -60,10 +50,22 @@ export default function VideoRoom({ onEnd }) {
         client.on('user-left', handleUserLeft);
 
         // Request camera and mic access before joining
+        if (!APP_ID) {
+            const msg = 'Missing REACT_APP_AGORA_APP_ID. Set it in your environment.';
+            setJoinError(msg);
+            console.error(msg);
+            return () => {
+                client.off('user-published', handleUserJoined);
+                client.off('user-left', handleUserLeft);
+            };
+        }
+
+        const effectiveChannel = channelName && channelName.trim().length > 0 ? channelName : 'call_general';
+
         AgoraRTC.createMicrophoneAndCameraTracks()
             .then(([audioTrack, videoTrack]) => {
                 setLocalTracks([audioTrack, videoTrack]);
-                return client.join(APP_ID, CHANNEL, TOKEN, null).then((uid) => {
+                return client.join(APP_ID, effectiveChannel, TOKEN || null, null).then((uid) => {
                     const localUserObj = {
                         uid,
                         audioTrack,
@@ -92,6 +94,11 @@ export default function VideoRoom({ onEnd }) {
                 <button aria-label="Menu" className="text-white text-2xl" onClick={() => {}}>
                     ☰
                 </button>
+                {joinError && (
+                    <div className="text-red-400 text-sm truncate max-w-[60%]" title={joinError}>
+                        {joinError}
+                    </div>
+                )}
             </div>
 
             {/* Main video - Remote user */}

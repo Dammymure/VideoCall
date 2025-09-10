@@ -216,10 +216,11 @@ export default function CallPage() {
       </div>
 
       {/* Video Room */}
-      <VideoRoom onEnd={handleEndCall} />
+      <VideoRoom onEnd={handleEndCall} channelName={currentMatch ? `call_match_${currentMatch.id}` : 'call_general'} />
 
       {/* Bottom Controls */}
       <div className="absolute bottom-4 left-0 right-0 z-20 flex items-center justify-between">
+        <div className="text-white text-xs opacity-70 ml-4">Room: {currentMatch ? `call_match_${currentMatch.id}` : 'call_general'}</div>
         <button
           onClick={handleNewMatch}
           className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-full shadow-lg"

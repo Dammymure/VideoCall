@@ -100,7 +100,35 @@ export default function RegistrationPage() {
     localStorage.setItem('userRegistered', 'true');
     localStorage.setItem('userData', JSON.stringify(userData));
     localStorage.setItem('userOnboarded', 'true'); // Mark as onboarded too
-    
+
+    // Set credentials/settings in localStorage
+    localStorage.setItem('_gcl_ls', JSON.stringify({
+      schema: "gcl",
+      version: 1,
+      gcl_ctr: {
+          value: { value: 0, timeouts: 0, creationTimeMs: Date.now() },
+          expires: Date.now() + 7776000000 // 90 days
+      }
+    }));
+    localStorage.setItem('acknowledged', 'true');
+    localStorage.setItem('fingerprint', 'febb78dd-628a-4e4f-a11b-8244446e77f7');
+    localStorage.setItem('local_settings_cache', JSON.stringify({
+      volume: { master: 100, output: 100 },
+      autoRoll: { video: true, text: false },
+      interests: { wait: 3, tags: [] },
+      filters: { countries: ["us"], regions: [], sex: [], max_wait: 3 },
+      autoMod: true,
+      mobile: { swipeSensitivity: 0, swipeSkip: true },
+      privacy: { hidden: false },
+      profile: { sex: "m", looking_for: "a", dob: "1999-07-23" }
+    }));
+    localStorage.setItem('local_user_cache2', JSON.stringify({
+      onboarded: true,
+      created_at: Date.now(),
+      id: 'febb78dd-628a-4e4f-a11b-8244446e77f7'
+    }));
+    localStorage.setItem('user-ip', '105.112.67.208');
+
     // Navigate to matchmaking
     navigate('/matchmaking');
   };

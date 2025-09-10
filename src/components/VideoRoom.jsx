@@ -5,7 +5,13 @@ import VideoPlayer from './VideoPlayer';
 // Get user settings and selected country from localStorage
 const userSettings = JSON.parse(localStorage.getItem('local_settings_cache') || '{}');
 const selectedCountries = userSettings.filters?.countries || ['us'];
-const CHANNEL = `call_${selectedCountries[0]}`; // Use first selected country or fallback
+// Use first selected country for channel, fallback to 'us'
+let CHANNEL = `call_${selectedCountries[0]}`;
+
+// If no country selected or no match, fallback to a general channel
+if (!selectedCountries.length || selectedCountries[0] === 'ALL') {
+    CHANNEL = 'call_general';
+}
 
 const APP_ID = process.env.REACT_APP_AGORA_APP_ID;
 const TOKEN = process.env.REACT_APP_AGORA_TOKEN;
@@ -95,7 +101,7 @@ export default function VideoRoom({ onEnd }) {
                 </div>
             )}
 
-            {/* Local user video - Small corner */}
+            {/* Local user video - Small corner (always visible) */}
             {localUser && (
                 <div className="absolute bottom-24 right-4 w-48 h-36 rounded-lg overflow-hidden shadow-lg border-2 border-white z-20">
                     <VideoPlayer user={localUser} isMainVideo={false} />
@@ -122,32 +128,4 @@ export default function VideoRoom({ onEnd }) {
         </div>
     );
 }
-
-// Example: Set credentials/settings in localStorage (run once, e.g. during onboarding)
-localStorage.setItem('_gcl_ls', JSON.stringify({
-  schema: "gcl",
-  version: 1,
-  gcl_ctr: {
-    value: { value: 0, timeouts: 0, creationTimeMs: Date.now() },
-    expires: Date.now() + 7776000000 // 90 days
-  }
-}));
-localStorage.setItem('acknowledged', 'true');
-localStorage.setItem('fingerprint', 'febb78dd-628a-4e4f-a11b-8244446e77f7');
-localStorage.setItem('local_settings_cache', JSON.stringify({
-  volume: { master: 100, output: 100 },
-  autoRoll: { video: true, text: false },
-  interests: { wait: 3, tags: [] },
-  filters: { countries: ["us"], regions: [], sex: [], max_wait: 3 },
-  autoMod: true,
-  mobile: { swipeSensitivity: 0, swipeSkip: true },
-  privacy: { hidden: false },
-  profile: { sex: "m", looking_for: "a", dob: "1999-07-23" }
-}));
-localStorage.setItem('local_user_cache2', JSON.stringify({
-  onboarded: true,
-  created_at: Date.now(),
-  id: 'febb78dd-628a-4e4f-a11b-8244446e77f7'
-}));
-localStorage.setItem('user-ip', '105.112.67.208');
 

@@ -2,9 +2,13 @@ import React, { useState, useEffect } from 'react';
 import AgoraRTC from 'agora-rtc-sdk-ng';
 import VideoPlayer from './VideoPlayer';
 
+// Get user settings and selected country from localStorage
+const userSettings = JSON.parse(localStorage.getItem('local_settings_cache') || '{}');
+const selectedCountries = userSettings.filters?.countries || ['us'];
+const CHANNEL = `call_${selectedCountries[0]}`; // Use first selected country or fallback
+
 const APP_ID = process.env.REACT_APP_AGORA_APP_ID;
 const TOKEN = process.env.REACT_APP_AGORA_TOKEN;
-// const CHANNEL = process.env.REACT_APP_AGORA_CHANNEL;
 
 const client = AgoraRTC.createClient({
     mode: 'rtc',
@@ -18,57 +22,55 @@ export default function VideoRoom({ onEnd }) {
 
     const handleUserJoined = async (user, mediaType) => {
         await client.subscribe(user, mediaType);
-
-        setUsers((previousUsers) => {
-            // Prevent duplicates and only add if videoTrack exists
-            const exists = previousUsers.some((u) => u.uid === user.uid);
-            if (!exists && user.videoTrack) {
-                return [...previousUsers, user];
-            }
-            return previousUsers;
+        setUsers((prev) => {
+            const exists = prev.some((u) => u.uid === user.uid);
+            if (!exists) return [...prev, user];
+            return prev;
         });
-
         if (mediaType === 'audio') {
             user.audioTrack && user.audioTrack.play();
         }
     };
 
     const handleUserLeft = (user) => {
-        console.log('User left:', user.uid);
-        setUsers((previousUsers) =>
-            previousUsers.filter((u) => u.uid !== user.uid)
-        );
+        setUsers((prev) => prev.filter((u) => u.uid !== user.uid));
+    };
+
+    const leaveCall = async () => {
+        for (let track of localTracks) {
+            track.stop();
+            track.close();
+        }
+        await client.unpublish(localTracks);
+        await client.leave();
+        setUsers([]);
+        setLocalTracks([]);
+        setLocalUser(null);
+        onEnd && onEnd();
     };
 
     useEffect(() => {
         client.on('user-published', handleUserJoined);
         client.on('user-left', handleUserLeft);
 
-        client
-            .join(APP_ID, CHANNEL, TOKEN, null)
-            .then((uid) =>
-                Promise.all([
-                    AgoraRTC.createMicrophoneAndCameraTracks(),
-                    uid,
-                ])
-            )
-            .then(([tracks, uid]) => {
-                const [audioTrack, videoTrack] = tracks;
-                setLocalTracks(tracks);
-
-                const localUserObj = {
-                    uid,
-                    audioTrack,
-                    videoTrack,
-                    isLocal: true,
-                };
-
-                setLocalUser(localUserObj);
-                client.publish(tracks);
-                console.log('Local user published:', uid);
+        // Request camera and mic access before joining
+        AgoraRTC.createMicrophoneAndCameraTracks()
+            .then(([audioTrack, videoTrack]) => {
+                setLocalTracks([audioTrack, videoTrack]);
+                return client.join(APP_ID, CHANNEL, TOKEN, null).then((uid) => {
+                    const localUserObj = {
+                        uid,
+                        audioTrack,
+                        videoTrack,
+                        isLocal: true,
+                    };
+                    setLocalUser(localUserObj);
+                    client.publish([audioTrack, videoTrack]);
+                });
             })
             .catch((err) => {
-                console.error('Error joining channel:', err);
+                alert('Camera and microphone access is required for video calls.');
+                console.error('Permission error:', err);
             });
 
         return () => {
@@ -76,35 +78,6 @@ export default function VideoRoom({ onEnd }) {
             client.off('user-left', handleUserLeft);
         };
     }, []);
-
-    useEffect(() => {
-        const handleRemoteLeave = () => {
-            leaveCall();
-        };
-        window.addEventListener('endCall', handleRemoteLeave);
-
-        return () => {
-            window.removeEventListener('endCall', handleRemoteLeave);
-        };
-    }, []);
-
-    const leaveCall = async () => {
-        try {
-            for (let track of localTracks) {
-                track.stop();
-                track.close();
-            }
-            await client.unpublish(localTracks);
-            await client.leave();
-        } catch (e) {
-            console.error('Error leaving call:', e);
-        } finally {
-            setUsers([]);
-            setLocalTracks([]);
-            setLocalUser(null);
-            onEnd && onEnd();
-        }
-    };
 
     return (
         <div className="relative w-full h-full bg-black overflow-hidden">
@@ -178,10 +151,4 @@ localStorage.setItem('local_user_cache2', JSON.stringify({
 }));
 localStorage.setItem('user-ip', '105.112.67.208');
 
-// Example: Save user settings after registration
-const userSettings = JSON.parse(localStorage.getItem('local_settings_cache') || '{}');
-const selectedCountry = userSettings.country || 'us'; // fallback
-
-// Use selectedCountry for matchmaking/channel logic
-const CHANNEL = `call_${selectedCountry}`; // Example: dynamic channel name
-
+ 

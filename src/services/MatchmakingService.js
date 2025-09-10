@@ -33,24 +33,31 @@ class MatchmakingService {
     };
   }
 
-  // Find a random match
+  // Find a match with deterministic shared room naming
   findRandomMatch(preferences = null) {
-    const onlineUsers = mockUsers.filter(user => 
-      user.isOnline && 
-      user.id !== this.currentUser?.id
-    );
+    const currentUserId = this.currentUser?.id;
+    const allOnline = mockUsers.filter(u => u.isOnline);
 
-    if (onlineUsers.length === 0) {
+    // If fewer than 2 online, no match possible
+    if (allOnline.length < 2) {
       return { success: false, message: "No users online at the moment" };
+    }
+
+    // Build candidate list excluding self when we know self id
+    let onlineUsers = allOnline;
+    if (currentUserId != null) {
+      onlineUsers = allOnline.filter(user => user.id !== currentUserId);
     }
 
     let potentialMatches = onlineUsers;
 
-    // Apply filtering if user has coins/boost
-    if (preferences && (this.userCoins >= 10 || this.userBoost)) {
+    // If there are only 2 users online total, always pair them; ignore filters
+    if (allOnline.length === 2 && currentUserId != null) {
+      potentialMatches = onlineUsers;
+    } else if (preferences && (this.userCoins >= 10 || this.userBoost)) {
+      // Otherwise apply filtering if user has coins/boost
       potentialMatches = this.applyFilters(onlineUsers, preferences);
-      
-      // Deduct coins if filtering was used
+      // Deduct coins if filtering was used (and not boosted)
       if (this.userCoins >= 10 && !this.userBoost) {
         this.userCoins -= 10;
         localStorage.setItem('userCoins', this.userCoins.toString());
@@ -58,15 +65,19 @@ class MatchmakingService {
     }
 
     if (potentialMatches.length === 0) {
-      return { 
-        success: false, 
-        message: "No matches found with your preferences. Try adjusting your filters or use random matching." 
-      };
+      // Fall back: if no filtered results, use the first available online
+      potentialMatches = onlineUsers;
     }
 
-    // Select random match
-    const randomIndex = Math.floor(Math.random() * potentialMatches.length);
-    const match = potentialMatches[randomIndex];
+    // Deterministic pick: smallest id among candidates
+    const match = potentialMatches.slice().sort((a, b) => a.id - b.id)[0];
+
+    // Compute a shared deterministic room using two ids
+    const a = currentUserId != null ? currentUserId : allOnline[0].id;
+    const b = match.id;
+    const minId = Math.min(a, b);
+    const maxId = Math.max(a, b);
+    const room = `call_room_${minId}_${maxId}`;
 
     return {
       success: true,
@@ -75,7 +86,8 @@ class MatchmakingService {
         name: match.name,
         age: match.age,
         gender: match.gender,
-        preferences: match.preferences
+        preferences: match.preferences,
+        room
       }
     };
   }

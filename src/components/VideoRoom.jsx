@@ -14,6 +14,7 @@ export default function VideoRoom({ onEnd, channelName }) {
     const [localTracks, setLocalTracks] = useState([]);
     const [localUser, setLocalUser] = useState(null);
     const [joinError, setJoinError] = useState(null);
+    const [token, setToken] = useState(null);
 
     const handleUserJoined = async (user, mediaType) => {
         await client.subscribe(user, mediaType);
@@ -44,6 +45,23 @@ export default function VideoRoom({ onEnd, channelName }) {
         onEnd && onEnd();
     };
 
+    const fetchToken = async () => {
+        try {
+            const response = await fetch('http://localhost:8080/token', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ channelName: channelName }),
+            });
+            const data = await response.json();
+            return data.token;
+        } catch (error) {
+            console.error('Error fetching token:', error);
+            throw error;
+        }
+    };
+
     useEffect(() => {
         client.on('user-published', handleUserJoined);
         client.on('user-left', handleUserLeft);
@@ -60,33 +78,41 @@ export default function VideoRoom({ onEnd, channelName }) {
 
         const effectiveChannel = channelName && channelName.trim().length > 0 ? channelName : 'call_general';
 
-        // Simple join without token
-        AgoraRTC.createMicrophoneAndCameraTracks()
-            .then(([audioTrack, videoTrack]) => {
+        // Get fresh token and join channel
+        const startCall = async () => {
+            try {
+                const freshToken = await fetchToken();
+                setToken(freshToken);
+                
+                const [audioTrack, videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
                 setLocalTracks([audioTrack, videoTrack]);
-                return client.join(APP_ID, effectiveChannel, null, null).then((uid) => {
-                    const localUserObj = {
-                        uid,
-                        audioTrack,
-                        videoTrack,
-                        isLocal: true,
-                    };
-                    setLocalUser(localUserObj);
-                    client.publish([audioTrack, videoTrack]);
-                });
-            })
-            .catch((err) => {
-                const reason = (err && err.message) ? err.message : 'Unknown error';
+                
+                const uid = await client.join(APP_ID, effectiveChannel, freshToken, null);
+                
+                const localUserObj = {
+                    uid,
+                    audioTrack,
+                    videoTrack,
+                    isLocal: true,
+                };
+                setLocalUser(localUserObj);
+                await client.publish([audioTrack, videoTrack]);
+            } catch (error) {
+                console.error('Setup error:', error);
+                const reason = (error && error.message) ? error.message : 'Unknown error';
                 const msg = `Unable to start camera/mic or join: ${reason}`;
                 setJoinError(msg);
-                console.error('Join error:', err);
-            });
+                console.error('Join error:', error);
+            }
+        };
+
+        startCall();
 
         return () => {
             client.off('user-published', handleUserJoined);
             client.off('user-left', handleUserLeft);
         };
-    }, []);
+    }, [channelName]);
 
     return (
         <div className="relative w-full h-full bg-black overflow-hidden">

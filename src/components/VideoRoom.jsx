@@ -95,8 +95,6 @@ export default function VideoRoom({ onEnd, channelName }) {
             return data;
         };
 
-        const noTokenMode = String(process.env.REACT_APP_AGORA_NO_TOKEN || '').trim() === '1';
-
         const startWithTracks = async (token, appId) => {
             const [audioTrack, videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
             setLocalTracks([audioTrack, videoTrack]);
@@ -108,23 +106,13 @@ export default function VideoRoom({ onEnd, channelName }) {
 
         const start = async () => {
             try {
-                if (noTokenMode) {
-                    await startWithTracks(null, APP_ID);
-                    return;
-                }
                 const { token, appId } = await fetchToken();
                 await startWithTracks(token, appId);
             } catch (err) {
-                // Fallback: attempt no-token join if token path failed and APP_ID exists
-                try {
-                    console.warn('Token path failed, attempting no-token fallback:', err);
-                    await startWithTracks(null, APP_ID);
-                } catch (fallbackErr) {
-                    const reason = (fallbackErr && fallbackErr.message) ? fallbackErr.message : 'Unknown error';
-                    const msg = `Unable to start camera/mic or join: ${reason}`;
-                    setJoinError(msg);
-                    console.error('Join error (fallback failed):', fallbackErr);
-                }
+                const reason = (err && err.message) ? err.message : 'Unknown error';
+                const msg = `Unable to fetch token or join: ${reason}`;
+                setJoinError(msg);
+                console.error('Join error:', err);
             }
         };
 

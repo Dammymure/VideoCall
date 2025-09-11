@@ -95,29 +95,40 @@ export default function VideoRoom({ onEnd, channelName }) {
             return data;
         };
 
-        fetchToken()
-            .then(({ token, appId }) =>
-                AgoraRTC.createMicrophoneAndCameraTracks().then(([audioTrack, videoTrack]) => ({ token, appId, audioTrack, videoTrack }))
-            )
-            .then(({ token, appId, audioTrack, videoTrack }) => {
-                setLocalTracks([audioTrack, videoTrack]);
-                return client.join(appId, effectiveChannel, token, localUid).then((uid) => {
-                    const localUserObj = {
-                        uid,
-                        audioTrack,
-                        videoTrack,
-                        isLocal: true,
-                    };
-                    setLocalUser(localUserObj);
-                    client.publish([audioTrack, videoTrack]);
-                });
-            })
-            .catch((err) => {
-                const reason = (err && err.message) ? err.message : 'Unknown error';
-                const msg = `Unable to start camera/mic or join: ${reason}`;
-                setJoinError(msg);
-                console.error('Join error:', err);
-            });
+        const noTokenMode = String(process.env.REACT_APP_AGORA_NO_TOKEN || '').trim() === '1';
+
+        const startWithTracks = async (token, appId) => {
+            const [audioTrack, videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
+            setLocalTracks([audioTrack, videoTrack]);
+            const uid = await client.join(appId, effectiveChannel, token, localUid);
+            const localUserObj = { uid, audioTrack, videoTrack, isLocal: true };
+            setLocalUser(localUserObj);
+            await client.publish([audioTrack, videoTrack]);
+        };
+
+        const start = async () => {
+            try {
+                if (noTokenMode) {
+                    await startWithTracks(null, APP_ID);
+                    return;
+                }
+                const { token, appId } = await fetchToken();
+                await startWithTracks(token, appId);
+            } catch (err) {
+                // Fallback: attempt no-token join if token path failed and APP_ID exists
+                try {
+                    console.warn('Token path failed, attempting no-token fallback:', err);
+                    await startWithTracks(null, APP_ID);
+                } catch (fallbackErr) {
+                    const reason = (fallbackErr && fallbackErr.message) ? fallbackErr.message : 'Unknown error';
+                    const msg = `Unable to start camera/mic or join: ${reason}`;
+                    setJoinError(msg);
+                    console.error('Join error (fallback failed):', fallbackErr);
+                }
+            }
+        };
+
+        start();
 
         return () => {
             client.off('user-published', handleUserJoined);

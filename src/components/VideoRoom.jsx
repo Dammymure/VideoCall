@@ -3,7 +3,6 @@ import AgoraRTC from 'agora-rtc-sdk-ng';
 import VideoPlayer from './VideoPlayer';
 
 const APP_ID = process.env.REACT_APP_AGORA_APP_ID;
-const TOKEN = process.env.REACT_APP_AGORA_TOKEN;
 
 const client = AgoraRTC.createClient({
     mode: 'rtc',
@@ -62,10 +61,42 @@ export default function VideoRoom({ onEnd, channelName }) {
 
         const effectiveChannel = channelName && channelName.trim().length > 0 ? channelName : 'call_general';
 
-        AgoraRTC.createMicrophoneAndCameraTracks()
+        // Derive a deterministic uid for the browser session
+        const localUid = (() => {
+            try {
+                const existing = localStorage.getItem('agora_uid');
+                if (existing) return parseInt(existing, 10) || 0;
+                const uid = Math.floor(Math.random() * 1e9);
+                localStorage.setItem('agora_uid', String(uid));
+                return uid;
+            } catch {
+                return 0;
+            }
+        })();
+
+        // Fetch a server-minted token
+        const fetchToken = async () => {
+            const params = new URLSearchParams({ channel: effectiveChannel, uid: String(localUid), role: 'publisher', expireSeconds: '3600' });
+            const response = await fetch(`/api/agora-token?${params.toString()}`);
+            if (!response.ok) {
+                const txt = await response.text();
+                throw new Error(`Token API error: ${response.status} ${txt}`);
+            }
+            const data = await response.json();
+            if (!data.token || !data.appId) {
+                throw new Error('Token API returned invalid payload');
+            }
+            return data;
+        };
+
+        fetchToken()
+            .then(({ token, appId }) => {
+                return AgoraRTC.createMicrophoneAndCameraTracks().then(([audioTrack, videoTrack]) => ({ token, appId, audioTrack, videoTrack }));
+            })
+            .then(({ token, appId, audioTrack, videoTrack }) => {
             .then(([audioTrack, videoTrack]) => {
                 setLocalTracks([audioTrack, videoTrack]);
-                return client.join(APP_ID, effectiveChannel, TOKEN || null, null).then((uid) => {
+                return client.join(appId, effectiveChannel, token, localUid).then((uid) => {
                     const localUserObj = {
                         uid,
                         audioTrack,

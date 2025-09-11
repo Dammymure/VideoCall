@@ -90,11 +90,10 @@ export default function VideoRoom({ onEnd, channelName }) {
         };
 
         fetchToken()
-            .then(({ token, appId }) => {
-                return AgoraRTC.createMicrophoneAndCameraTracks().then(([audioTrack, videoTrack]) => ({ token, appId, audioTrack, videoTrack }));
-            })
+            .then(({ token, appId }) =>
+                AgoraRTC.createMicrophoneAndCameraTracks().then(([audioTrack, videoTrack]) => ({ token, appId, audioTrack, videoTrack }))
+            )
             .then(({ token, appId, audioTrack, videoTrack }) => {
-            .then(([audioTrack, videoTrack]) => {
                 setLocalTracks([audioTrack, videoTrack]);
                 return client.join(appId, effectiveChannel, token, localUid).then((uid) => {
                     const localUserObj = {

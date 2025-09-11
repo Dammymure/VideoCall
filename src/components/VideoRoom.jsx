@@ -48,7 +48,6 @@ export default function VideoRoom({ onEnd, channelName }) {
         client.on('user-published', handleUserJoined);
         client.on('user-left', handleUserLeft);
 
-        // Request camera and mic access before joining
         if (!APP_ID) {
             const msg = 'Missing REACT_APP_AGORA_APP_ID. Set it in your environment.';
             setJoinError(msg);
@@ -61,62 +60,27 @@ export default function VideoRoom({ onEnd, channelName }) {
 
         const effectiveChannel = channelName && channelName.trim().length > 0 ? channelName : 'call_general';
 
-        // Derive a deterministic uid for the browser session
-        const localUid = (() => {
-            try {
-                const existing = localStorage.getItem('agora_uid');
-                if (existing) return parseInt(existing, 10) || 0;
-                const uid = Math.floor(Math.random() * 1e9);
-                localStorage.setItem('agora_uid', String(uid));
-                return uid;
-            } catch {
-                return 0;
-            }
-        })();
-
-        // Fetch a server-minted token
-        const fetchToken = async () => {
-            const params = new URLSearchParams({ channel: effectiveChannel, uid: String(localUid), role: 'publisher', expireSeconds: '3600' });
-            const base = window.location.origin;
-            const response = await fetch(`${base}/api/agora-token?${params.toString()}`);
-            const contentType = response.headers.get('content-type') || '';
-            if (!response.ok) {
-                const txt = await response.text();
-                throw new Error(`Token API error: ${response.status} ${txt.slice(0, 200)}`);
-            }
-            if (!contentType.includes('application/json')) {
-                const txt = await response.text();
-                throw new Error(`Token API returned non-JSON (${contentType}): ${txt.slice(0, 200)}`);
-            }
-            const data = await response.json();
-            if (!data.token || !data.appId) {
-                throw new Error('Token API returned invalid payload');
-            }
-            return data;
-        };
-
-        const startWithTracks = async (token, appId) => {
-            const [audioTrack, videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
-            setLocalTracks([audioTrack, videoTrack]);
-            const uid = await client.join(appId, effectiveChannel, token, localUid);
-            const localUserObj = { uid, audioTrack, videoTrack, isLocal: true };
-            setLocalUser(localUserObj);
-            await client.publish([audioTrack, videoTrack]);
-        };
-
-        const start = async () => {
-            try {
-                const { token, appId } = await fetchToken();
-                await startWithTracks(token, appId);
-            } catch (err) {
+        // Simple join without token
+        AgoraRTC.createMicrophoneAndCameraTracks()
+            .then(([audioTrack, videoTrack]) => {
+                setLocalTracks([audioTrack, videoTrack]);
+                return client.join(APP_ID, effectiveChannel, null, null).then((uid) => {
+                    const localUserObj = {
+                        uid,
+                        audioTrack,
+                        videoTrack,
+                        isLocal: true,
+                    };
+                    setLocalUser(localUserObj);
+                    client.publish([audioTrack, videoTrack]);
+                });
+            })
+            .catch((err) => {
                 const reason = (err && err.message) ? err.message : 'Unknown error';
-                const msg = `Unable to fetch token or join: ${reason}`;
+                const msg = `Unable to start camera/mic or join: ${reason}`;
                 setJoinError(msg);
                 console.error('Join error:', err);
-            }
-        };
-
-        start();
+            });
 
         return () => {
             client.off('user-published', handleUserJoined);

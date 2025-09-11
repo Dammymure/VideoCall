@@ -47,7 +47,7 @@ export default function VideoRoom({ onEnd, channelName }) {
 
     const fetchToken = async () => {
         try {
-            const response = await fetch('http://localhost:8080/token', {
+            const response = await fetch('https://video-call-iota-hazel.vercel.app/token', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

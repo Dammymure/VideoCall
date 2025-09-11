@@ -8,7 +8,7 @@ const app = express();
 // Allow requests from your Vercel frontend domain
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
-    ? 'https://your-frontend-url.vercel.app'
+    ? 'https://video-call-iota-hazel.vercel.app/'
     : 'http://localhost:3000'
 }));
 

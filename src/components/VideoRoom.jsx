@@ -78,9 +78,14 @@ export default function VideoRoom({ onEnd, channelName }) {
         const fetchToken = async () => {
             const params = new URLSearchParams({ channel: effectiveChannel, uid: String(localUid), role: 'publisher', expireSeconds: '3600' });
             const response = await fetch(`/api/agora-token?${params.toString()}`);
+            const contentType = response.headers.get('content-type') || '';
             if (!response.ok) {
                 const txt = await response.text();
-                throw new Error(`Token API error: ${response.status} ${txt}`);
+                throw new Error(`Token API error: ${response.status} ${txt.slice(0, 200)}`);
+            }
+            if (!contentType.includes('application/json')) {
+                const txt = await response.text();
+                throw new Error(`Token API returned non-JSON (${contentType}): ${txt.slice(0, 200)}`);
             }
             const data = await response.json();
             if (!data.token || !data.appId) {

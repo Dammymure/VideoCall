@@ -77,7 +77,8 @@ export default function VideoRoom({ onEnd, channelName }) {
         // Fetch a server-minted token
         const fetchToken = async () => {
             const params = new URLSearchParams({ channel: effectiveChannel, uid: String(localUid), role: 'publisher', expireSeconds: '3600' });
-            const response = await fetch(`/api/agora-token?${params.toString()}`);
+            const base = window.location.origin;
+            const response = await fetch(`${base}/api/agora-token?${params.toString()}`);
             const contentType = response.headers.get('content-type') || '';
             if (!response.ok) {
                 const txt = await response.text();

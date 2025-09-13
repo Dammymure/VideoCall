@@ -46,18 +46,20 @@ export default function VideoRoom({ onEnd }) {
         client.on('user-published', handleUserJoined);
         client.on('user-left', handleUserLeft);
 
-        // Basic Agora join
+        // Basic Agora join - try without token first, then with null if that fails
         AgoraRTC.createMicrophoneAndCameraTracks()
             .then(([audioTrack, videoTrack]) => {
                 setLocalTracks([audioTrack, videoTrack]);
-                return client.join(APP_ID, 'test-room', null, null);
+                // Try joining without token first
+                return client.join(APP_ID, 'videoCall', null, null);
             })
             .then((uid) => {
                 setLocalUser({ uid, audioTrack: localTracks[0], videoTrack: localTracks[1], isLocal: true });
                 client.publish([audioTrack, videoTrack]);
             })
             .catch((err) => {
-                console.error('Error:', err);
+                console.error('Join failed, your Agora project requires tokens. Error:', err);
+                alert('This Agora project requires token authentication. Please configure your project for "App ID only" or add a token.');
             });
 
         return () => {

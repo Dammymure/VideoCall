@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import AgoraRTC from 'agora-rtc-sdk-ng';
-import VideoPlayer from './VideoPlayer';
 
 const APP_ID = process.env.REACT_APP_AGORA_APP_ID;
 
@@ -9,12 +8,10 @@ const client = AgoraRTC.createClient({
     codec: 'vp8',
 });
 
-export default function VideoRoom({ onEnd, channelName }) {
+export default function VideoRoom({ onEnd }) {
     const [users, setUsers] = useState([]);
     const [localTracks, setLocalTracks] = useState([]);
     const [localUser, setLocalUser] = useState(null);
-    const [joinError, setJoinError] = useState(null);
-    const [token, setToken] = useState(null);
 
     const handleUserJoined = async (user, mediaType) => {
         await client.subscribe(user, mediaType);
@@ -45,118 +42,50 @@ export default function VideoRoom({ onEnd, channelName }) {
         onEnd && onEnd();
     };
 
-    const fetchToken = async () => {
-        try {
-            const response = await fetch('https://video-call-iota-hazel.vercel.app/token', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ channelName: channelName }),
-            });
-            const data = await response.json();
-            return data.token;
-        } catch (error) {
-            console.error('Error fetching token:', error);
-            throw error;
-        }
-    };
-
     useEffect(() => {
         client.on('user-published', handleUserJoined);
         client.on('user-left', handleUserLeft);
 
-        if (!APP_ID) {
-            const msg = 'Missing REACT_APP_AGORA_APP_ID. Set it in your environment.';
-            setJoinError(msg);
-            console.error(msg);
-            return () => {
-                client.off('user-published', handleUserJoined);
-                client.off('user-left', handleUserLeft);
-            };
-        }
-
-        const effectiveChannel = channelName && channelName.trim().length > 0 ? channelName : 'call_general';
-
-        // Get fresh token and join channel
-        const startCall = async () => {
-            try {
-                const freshToken = await fetchToken();
-                setToken(freshToken);
-                
-                const [audioTrack, videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
+        // Basic Agora join
+        AgoraRTC.createMicrophoneAndCameraTracks()
+            .then(([audioTrack, videoTrack]) => {
                 setLocalTracks([audioTrack, videoTrack]);
-                
-                const uid = await client.join(APP_ID, effectiveChannel, freshToken, null);
-                
-                const localUserObj = {
-                    uid,
-                    audioTrack,
-                    videoTrack,
-                    isLocal: true,
-                };
-                setLocalUser(localUserObj);
-                await client.publish([audioTrack, videoTrack]);
-            } catch (error) {
-                console.error('Setup error:', error);
-                const reason = (error && error.message) ? error.message : 'Unknown error';
-                const msg = `Unable to start camera/mic or join: ${reason}`;
-                setJoinError(msg);
-                console.error('Join error:', error);
-            }
-        };
-
-        startCall();
+                return client.join(APP_ID, 'test-room', null, null);
+            })
+            .then((uid) => {
+                setLocalUser({ uid, audioTrack: localTracks[0], videoTrack: localTracks[1], isLocal: true });
+                client.publish([audioTrack, videoTrack]);
+            })
+            .catch((err) => {
+                console.error('Error:', err);
+            });
 
         return () => {
             client.off('user-published', handleUserJoined);
             client.off('user-left', handleUserLeft);
         };
-    }, [channelName]);
+    }, []);
 
     return (
-        <div className="relative w-full h-full bg-black overflow-hidden">
-            {/* Top bar */}
-            <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between p-3 bg-gradient-to-b from-black/60 to-transparent">
-                <button aria-label="Menu" className="text-white text-2xl" onClick={() => {}}>
-                    ☰
-                </button>
-                {joinError && (
-                    <div className="text-red-400 text-sm truncate max-w-[60%]" title={joinError}>
-                        {joinError}
-                    </div>
-                )}
-            </div>
-
-            {/* Main video - Remote user */}
+        <div className="relative w-full h-full bg-black">
+            {/* Remote video */}
             {users.length > 0 && (
                 <div className="w-full h-full">
-                    <VideoPlayer user={users[0]} isMainVideo={true} />
+                    <div ref={(ref) => users[0].videoTrack?.play(ref)} className="w-full h-full" />
                 </div>
             )}
 
-            {/* Local user video - Small corner (always visible) */}
+            {/* Local video */}
             {localUser && (
-                <div className="absolute bottom-24 right-4 w-48 h-36 rounded-lg overflow-hidden shadow-lg border-2 border-white z-20">
-                    <VideoPlayer user={localUser} isMainVideo={false} />
+                <div className="absolute bottom-4 right-4 w-48 h-36 border-2 border-white">
+                    <div ref={(ref) => localUser.videoTrack?.play(ref)} className="w-full h-full" />
                 </div>
             )}
 
-            {/* Waiting for other user */}
-            {users.length === 0 && (
-                <div className="flex items-center justify-center h-full">
-                    <div className="text-center text-white">
-                        <div className="text-2xl mb-4">📞</div>
-                        <h2 className="text-xl mb-2">Waiting for someone to join...</h2>
-                        <p className="text-gray-300">Share this room with a friend!</p>
-                    </div>
-                </div>
-            )}
-
-            {/* Bottom controls */}
-            <div className="absolute bottom-4 left-0 right-0 z-20 flex items-center justify-center">
-                <button onClick={leaveCall} className="bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-full shadow-lg">
-                    End Call
+            {/* Controls */}
+            <div className="absolute bottom-4 left-4">
+                <button onClick={leaveCall} className="bg-red-600 text-white px-4 py-2 rounded">
+                    Leave
                 </button>
             </div>
         </div>

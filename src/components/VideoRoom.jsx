@@ -46,12 +46,13 @@ export default function VideoRoom({ onEnd }) {
         client.on('user-published', handleUserJoined);
         client.on('user-left', handleUserLeft);
 
-        // Basic Agora join - try without token first, then with null if that fails
+        // Basic Agora join with token from environment
+        const TOKEN = process.env.REACT_APP_AGORA_TOKEN;
+        
         AgoraRTC.createMicrophoneAndCameraTracks()
             .then(([audioTrack, videoTrack]) => {
                 setLocalTracks([audioTrack, videoTrack]);
-                // Try joining without token first
-                return client.join(APP_ID, 'videoCall', null, null);
+                return client.join(APP_ID, 'videoCall', TOKEN, null);
             })
             .then((uid) => {
                 setLocalUser({ uid, audioTrack: localTracks[0], videoTrack: localTracks[1], isLocal: true });

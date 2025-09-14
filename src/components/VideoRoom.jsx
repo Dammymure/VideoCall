@@ -14,14 +14,21 @@ export default function VideoRoom({ onEnd }) {
     const [localUser, setLocalUser] = useState(null);
 
     const handleUserJoined = async (user, mediaType) => {
+        console.log('User joined:', user, 'Media type:', mediaType);
         await client.subscribe(user, mediaType);
         setUsers((prev) => {
             const exists = prev.some((u) => u.uid === user.uid);
-            if (!exists) return [...prev, user];
+            if (!exists) {
+                console.log('Adding user to list:', user);
+                return [...prev, user];
+            }
             return prev;
         });
         if (mediaType === 'audio') {
             user.audioTrack && user.audioTrack.play();
+        }
+        if (mediaType === 'video') {
+            console.log('Video track available:', user.videoTrack);
         }
     };
 
@@ -71,15 +78,23 @@ export default function VideoRoom({ onEnd }) {
     return (
         <div className="relative w-full h-full bg-black">
             {/* Remote video */}
-            {users.length > 0 && users[0].videoTrack && (
+            {users.length > 0 && (
                 <div className="w-full h-full">
                     <div ref={(ref) => {
                         if (ref && users[0].videoTrack) {
+                            console.log('Playing remote video on element');
                             users[0].videoTrack.play(ref);
+                        } else {
+                            console.log('No video track for remote user:', users[0]);
                         }
-                    }} className="w-full h-full" />
+                    }} className="w-full h-full bg-gray-800" />
                 </div>
             )}
+            
+            {/* Debug info */}
+            <div className="absolute top-4 left-4 text-white text-sm">
+                Users: {users.length} | Local: {localUser ? 'Yes' : 'No'}
+            </div>
 
             {/* Local video */}
             {localUser && localUser.videoTrack && (

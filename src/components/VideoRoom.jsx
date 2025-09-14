@@ -52,11 +52,10 @@ export default function VideoRoom({ onEnd }) {
         AgoraRTC.createMicrophoneAndCameraTracks()
             .then(([audioTrack, videoTrack]) => {
                 setLocalTracks([audioTrack, videoTrack]);
-                return client.join(APP_ID, 'videoCall', TOKEN, null);
-            })
-            .then((uid) => {
-                setLocalUser({ uid, audioTrack: localTracks[0], videoTrack: localTracks[1], isLocal: true });
-                client.publish([audioTrack, videoTrack]);
+                return client.join(APP_ID, 'videoCall', TOKEN, null).then((uid) => {
+                    setLocalUser({ uid, audioTrack, videoTrack, isLocal: true });
+                    return client.publish([audioTrack, videoTrack]);
+                });
             })
             .catch((err) => {
                 console.error('Join failed, your Agora project requires tokens. Error:', err);
@@ -72,16 +71,24 @@ export default function VideoRoom({ onEnd }) {
     return (
         <div className="relative w-full h-full bg-black">
             {/* Remote video */}
-            {users.length > 0 && (
+            {users.length > 0 && users[0].videoTrack && (
                 <div className="w-full h-full">
-                    <div ref={(ref) => users[0].videoTrack?.play(ref)} className="w-full h-full" />
+                    <div ref={(ref) => {
+                        if (ref && users[0].videoTrack) {
+                            users[0].videoTrack.play(ref);
+                        }
+                    }} className="w-full h-full" />
                 </div>
             )}
 
             {/* Local video */}
-            {localUser && (
+            {localUser && localUser.videoTrack && (
                 <div className="absolute bottom-4 right-4 w-48 h-36 border-2 border-white">
-                    <div ref={(ref) => localUser.videoTrack?.play(ref)} className="w-full h-full" />
+                    <div ref={(ref) => {
+                        if (ref && localUser.videoTrack) {
+                            localUser.videoTrack.play(ref);
+                        }
+                    }} className="w-full h-full" />
                 </div>
             )}
 

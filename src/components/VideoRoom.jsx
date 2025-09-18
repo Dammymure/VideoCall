@@ -22,13 +22,25 @@ export default function VideoRoom({ onEnd }) {
                 console.log('Adding user to list:', user);
                 return [...prev, user];
             }
-            return prev;
+            return prev.map((u) => (u.uid === user.uid ? user : u));
         });
         if (mediaType === 'audio') {
             user.audioTrack && user.audioTrack.play();
         }
-        if (mediaType === 'video') {
-            console.log('Video track available:', user.videoTrack);
+        if (mediaType === 'video' && user.videoTrack) {
+            console.log('Playing remote video into #remote-video');
+            try {
+                user.videoTrack.play('remote-video');
+            } catch (e) {
+                console.warn('Failed to play remote video immediately, will rely on render ref.');
+            }
+        }
+    };
+
+    const handleUserUnpublished = (user, mediaType) => {
+        console.log('User unpublished:', user.uid, mediaType);
+        if (mediaType === 'video' || mediaType === 'audio') {
+            setUsers((prev) => prev.map((u) => (u.uid === user.uid ? user : u)));
         }
     };
 
@@ -52,6 +64,7 @@ export default function VideoRoom({ onEnd }) {
     useEffect(() => {
         client.on('user-published', handleUserJoined);
         client.on('user-left', handleUserLeft);
+        client.on('user-unpublished', handleUserUnpublished);
 
         // Basic Agora join with token from environment
         const TOKEN = process.env.REACT_APP_AGORA_TOKEN;
@@ -72,24 +85,16 @@ export default function VideoRoom({ onEnd }) {
         return () => {
             client.off('user-published', handleUserJoined);
             client.off('user-left', handleUserLeft);
+            client.off('user-unpublished', handleUserUnpublished);
         };
     }, []);
 
     return (
         <div className="relative w-full h-full bg-black">
             {/* Remote video */}
-            {users.length > 0 && (
-                <div className="w-full h-full">
-                    <div ref={(ref) => {
-                        if (ref && users[0].videoTrack) {
-                            console.log('Playing remote video on element');
-                            users[0].videoTrack.play(ref);
-                        } else {
-                            console.log('No video track for remote user:', users[0]);
-                        }
-                    }} className="w-full h-full bg-gray-800" />
-                </div>
-            )}
+            <div className="w-full h-full">
+                <div id="remote-video" className="w-full h-full bg-gray-800" />
+            </div>
             
             {/* Debug info */}
             <div className="absolute top-4 left-4 text-white text-sm">
